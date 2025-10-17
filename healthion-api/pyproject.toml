@@ -17,6 +17,7 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0",
     "httpx>=0.27.0",
     "boto3>=1.40.53",
+    "celery>=5.5.3",
 ]
 
 [dependency-groups]
