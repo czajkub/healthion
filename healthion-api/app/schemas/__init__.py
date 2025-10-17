@@ -41,6 +41,14 @@ from .health_data import (
     RootJSON,
     ImportBundle
 )
+from .xml import (
+    RecordCreate,
+    XMLWorkoutCreate,
+    WorkoutStatisticCreate,
+    RecordUpdate,
+    XMLWorkoutUpdate,
+    WorkoutStatisticUpdate
+)
 from .error_codes import ErrorCode
 from .response import UploadDataResponse
 
@@ -92,7 +100,14 @@ __all__ = [
     "WorkoutJSON",
     "RootJSON",
     "ImportBundle",
-    
+
+    "RecordCreate",
+    "XMLWorkoutCreate",
+    "WorkoutStatisticCreate",
+    "RecordUpdate",
+    "XMLWorkoutUpdate",
+    "WorkoutStatisticUpdate",
+
     "ErrorCode",
     
     "UploadDataResponse",

@@ -3,14 +3,14 @@ from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 
 from app.services.aws_service import s3_client, AWS_BUCKET_NAME
 from app.schemas.aws import PresignedURLRequest, PresignedURLResponse
-from seler.app.celery_factory import celery_app
-from seler.app.tasks import poll_sqs_task, poll_sqs_messages
+from app.tasks import poll_sqs_task, poll_sqs_messages
 
 
+# add to env
 QUEUE_URL: str = "https://sqs.eu-north-1.amazonaws.com/733796381340/xml_upload"
 
 def generate_file_key(
@@ -45,11 +45,11 @@ def validate_bucket_exists() -> bool:
                 status_code=500, detail=f"S3 bucket error: {error_code}"
             )
 
-app = FastAPI()
+router = APIRouter()
 sqs = boto3.client("sqs")
 
 
-@app.post("/import-data/apple/presigned_url", response_model=PresignedURLResponse)
+@router.post("/import-data/apple/presigned_url", response_model=PresignedURLResponse)
 async def create_presigned_upload_url(request: PresignedURLRequest):
     """
     Generate a presigned URL for direct file upload to S3
@@ -103,7 +103,7 @@ async def create_presigned_upload_url(request: PresignedURLRequest):
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
-@app.get("/import-data/apple/poll_sqs")
+@router.get("/import-data/apple/poll_sqs")
 async def poll_sqs():
     return await poll_sqs_messages()
 
