@@ -7,17 +7,13 @@ from sqlalchemy.orm import Session
 import pandas as pd
 
 from app.services.apple.apple_xml.aws_service import s3_client
-from app.services.xml_service import XMLExporter
-from app.services.xml_service import (
-    record_service,
-    xml_workout_service,
-    workout_statistic_service
-)
+from app.services.apple.apple_xml.xml_service import XMLService
+from app.services import hk_workout_service, hk_workout_statistic_service
 from app.database import SessionLocal
 from app.config import settings
-from app.schemas import RecordCreate, XMLWorkoutCreate, WorkoutStatisticCreate
+from app.schemas import HKWorkoutCreate, HKWorkoutStatisticCreate
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 @shared_task
@@ -56,19 +52,10 @@ def process_uploaded_file(bucket_name: str, object_key: str, user_id: str = None
         finally:
             db.close()
 
-        # Create Postgres dump file
-        filename = object_key.split('/')[-1]
-        dump_file = os.path.join(temp_dir, f"export_{filename.replace('.xml', '.sql')}")
-        _create_postgres_dump(dump_file)
-
-        # Upload dump file to S3
-        output_key = f"{user_id}/processed/{filename.replace('.xml', '.sql')}"
-        s3_client.upload_file(dump_file, bucket_name, output_key)
 
         result = {
             "bucket": bucket_name,
             "input_key": object_key,
-            "output_key": output_key,
             "user_id": user_id,
             "status": "success",
             "message": "Import completed successfully",
@@ -103,49 +90,47 @@ def _import_xml_data(db: Session, xml_path: str, user_id: str) -> None:
         xml_path: Path to the XML file
         user_id: User ID to associate with the data
     """
-    exporter = XMLExporter(Path(xml_path))
-    user_uuid = UUID(user_id)
+    xml_service = XMLService(Path(xml_path))
 
-    for df in exporter.parse_xml():
-        if df.empty:
-            continue
-
-        # Detect DataFrame type and process accordingly
-        if "value" in df.columns:
-            _process_records_df(db, df, user_uuid)
-        elif "duration" in df.columns:
-            _process_workouts_df(db, df, user_uuid)
-        elif "sum" in df.columns:
-            _process_statistics_df(db, df, user_uuid)
+    for workouts, statistics in xml_service.parse_xml():
+        for workout_create in workouts:
+            workout_create.user_id = UUID(user_id)
+            hk_workout_service.create(db, workout_create)
+        for stat in statistics:
+            for stat_create in stat:
+                stat_create.user_id = UUID(user_id)
+                hk_workout_statistic_service.create(db, stat_create)
 
 
-def _process_records_df(db: Session, df: pd.DataFrame, user_id: UUID) -> None:
-    """Process Records DataFrame and insert to database."""
-    for _, row in df.iterrows():
-        try:
-            record_data = {
-                "user_id": user_id,
-                "type": str(row.get("type", ""))[:50],
-                "sourceVersion": str(row.get("sourceVersion", ""))[:100],
-                "sourceName": str(row.get("sourceName", ""))[:100],
-                "deviceId": str(row.get("device", ""))[:100],
-                "startDate": row.get("startDate"),
-                "endDate": row.get("endDate"),
-                "creationDate": row.get("creationDate"),
-                "unit": str(row.get("unit", ""))[:10],
-                "value": _safe_decimal(row.get("value")),
-            }
-            record_create = RecordCreate(**record_data)
-            record_service.create(db, record_create)
-        except Exception as e:
-            raise Exception(f"Failed to process record: {str(e)}")
+# def _process_records_df(db: Session, df: pd.DataFrame, user_id: UUID) -> None:
+#     """Process Records DataFrame and insert to database."""
+#     for _, row in df.iterrows():
+#         try:
+#             record_data = {
+#                 "user_id": user_id,
+#                 "type": str(row.get("type", ""))[:50],
+#                 "sourceVersion": str(row.get("sourceVersion", ""))[:100],
+#                 "sourceName": str(row.get("sourceName", ""))[:100],
+#                 "deviceId": str(row.get("device", ""))[:100],
+#                 "startDate": row.get("startDate"),
+#                 "endDate": row.get("endDate"),
+#                 "creationDate": row.get("creationDate"),
+#                 "unit": str(row.get("unit", ""))[:10],
+#                 "value": _safe_decimal(row.get("value")),
+#             }
+#             record_create = RecordCreate(**record_data)
+#             record_service.create(db, record_create)
+#         except Exception as e:
+#             raise Exception(f"Failed to process record: {str(e)}")
 
 
 def _process_workouts_df(db: Session, df: pd.DataFrame, user_id: UUID) -> None:
     """Process Workouts DataFrame and insert to database."""
     for _, row in df.iterrows():
         try:
+            id = uuid4()
             workout_data = {
+                "id": id,
                 "user_id": user_id,
                 "type": str(row.get("type", ""))[:50],
                 "duration": _safe_decimal(row.get("duration")),
@@ -153,34 +138,16 @@ def _process_workouts_df(db: Session, df: pd.DataFrame, user_id: UUID) -> None:
                 "sourceName": str(row.get("sourceName", ""))[:100],
                 "startDate": row.get("startDate"),
                 "endDate": row.get("endDate"),
-                "creationDate": row.get("creationDate"),
+                "workout_statistics": row.get("workout_statistics", []),
             }
-            workout_create = XMLWorkoutCreate(**workout_data)
-            xml_workout_service.create(db, workout_create)
+            for stat in row.get("workout_statistics", []):
+                stat_create = HKWorkoutStatisticCreate(**stat)
+                hk_workout_statistic_service.create(db, stat_create)
+            workout_data.pop("workout_statistics")
+            workout_create = HKWorkoutCreate(**workout_data)
+            hk_workout_service.create(db, workout_create)
         except Exception as e:
             raise Exception(f"Failed to process workout: {str(e)}")
-
-
-def _process_statistics_df(db: Session, df: pd.DataFrame, user_id: UUID) -> None:
-    """Process WorkoutStatistics DataFrame and insert to database."""
-    for _, row in df.iterrows():
-        try:
-            stat_data = {
-                "user_id": user_id,
-                "type": str(row.get("type", ""))[:50],
-                "startDate": row.get("startDate"),
-                "endDate": row.get("endDate"),
-                "creationDate": row.get("creationDate"),
-                "sum": _safe_decimal(row.get("sum")),
-                "average": _safe_decimal(row.get("average")),
-                "maximum": _safe_decimal(row.get("maximum")),
-                "minimum": _safe_decimal(row.get("minimum")),
-                "unit": str(row.get("unit", ""))[:10],
-            }
-            stat_create = WorkoutStatisticCreate(**stat_data)
-            workout_statistic_service.create(db, stat_create)
-        except Exception as e:
-            raise Exception(f"Failed to process statistic: {str(e)}")
 
 
 @staticmethod
@@ -192,20 +159,3 @@ def _safe_decimal(value) -> Decimal | None:
         return Decimal(str(value))
     except (ValueError, TypeError):
         return None
-
-
-def _create_postgres_dump(dump_file: str) -> None:
-    """
-    Create a PostgreSQL dump file of the entire database.
-
-    Args:
-        dump_file: Path where to save the SQL dump file
-    """
-    try:
-        subprocess.run(
-            ["pg_dump", settings.db_uri, f"--file={dump_file}"],
-            check=True,
-            capture_output=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"pg_dump failed: {e.stderr.decode()}")

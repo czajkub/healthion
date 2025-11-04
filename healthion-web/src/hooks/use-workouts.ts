@@ -34,7 +34,7 @@ export const useWorkouts = (filters?: WorkoutFilters) => {
 
   useEffect(() => {
     fetchData()
-  }, [isAuthenticated, filters?.start_date, filters?.end_date, filters?.limit, filters?.offset, filters?.workout_type, filters?.location, filters?.sort_by, filters?.sort_order])
+  }, [isAuthenticated, filters?.start_date, filters?.end_date, filters?.limit, filters?.offset, filters?.workout_type, filters?.location, filters?.min_duration, filters?.max_duration, filters?.min_distance, filters?.max_distance, filters?.sort_by, filters?.sort_order])
 
   return {
     data,

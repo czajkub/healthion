@@ -5,6 +5,8 @@ import boto3
 from celery import shared_task
 from fastapi import HTTPException
 
+from app.tasks.process_upload_task import process_uploaded_file
+
 
 QUEUE_URL: str = "https://sqs.eu-north-1.amazonaws.com/733796381340/xml_upload"
 
@@ -50,7 +52,7 @@ async def poll_sqs_messages():
                 )
 
             except Exception as e:
-                raise
+                raise HTTPException(status_code=500, detail=str(e))
 
         return {
             "messages_processed": processed_count,
@@ -58,8 +60,8 @@ async def poll_sqs_messages():
             "messages": messages
         }
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to poll SQS messages")
 
 
 

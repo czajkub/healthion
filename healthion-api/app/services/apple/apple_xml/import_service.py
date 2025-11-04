@@ -13,6 +13,7 @@ from typing import Optional
 from app.database import DbSession
 from app.services.apple.apple_xml.aws_service import s3_client, AWS_BUCKET_NAME
 from app.schemas.apple.apple_xml.aws import PresignedURLRequest, PresignedURLResponse
+from app.tasks.poll_sqs_task import poll_sqs_task
 
 
 class ImportService:
