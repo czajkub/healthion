@@ -135,7 +135,7 @@ export interface WorkoutFilters {
   max_duration?: number
   min_distance?: number
   max_distance?: number
-  sort_by?: 'date' | 'duration' | 'distance' | 'calories'
+  sort_by?: 'startDate' | 'endDate' | 'duration' | 'type' | 'sourceName'
   sort_order?: 'asc' | 'desc'
 }
 

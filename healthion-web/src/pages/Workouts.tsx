@@ -15,8 +15,7 @@ export default function Workouts() {
         end_date: '',
         limit: 20,
         workout_type: '',
-        location: undefined as 'Indoor' | 'Outdoor' | undefined,
-        sort_by: 'date' as 'date' | 'duration' | 'distance' | 'calories',
+        sort_by: 'startDate' as 'startDate' | 'endDate' | 'duration' | 'type' | 'sourceName',
         sort_order: 'desc' as 'asc' | 'desc'
     });
     
@@ -25,8 +24,7 @@ export default function Workouts() {
     const handleFilterChange = (key: string, value: string) => {
         setFilters(prev => ({
             ...prev,
-            [key]: key === 'location' ? (value === '' ? undefined : value as 'Indoor' | 'Outdoor') :
-                   key === 'sort_by' ? value as 'date' | 'duration' | 'distance' | 'calories' :
+            [key]: key === 'sort_by' ? value as 'startDate' | 'endDate' | 'duration' | 'type' | 'sourceName' :
                    key === 'sort_order' ? value as 'asc' | 'desc' :
                    key === 'limit' ? parseInt(value) || 20 :
                    value
@@ -118,19 +116,6 @@ export default function Workouts() {
                             />
                         </div>
                         <div>
-                            <label className="text-sm font-medium">Location</label>
-                            <Select value={filters.location || 'all'} onValueChange={(value) => handleFilterChange('location', value === 'all' ? '' : value)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All locations" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All locations</SelectItem>
-                                    <SelectItem value="Indoor">Indoor</SelectItem>
-                                    <SelectItem value="Outdoor">Outdoor</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
                             <label className="text-sm font-medium">Limit</label>
                             <Input
                                 type="number"
@@ -147,10 +132,11 @@ export default function Workouts() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="date">Date</SelectItem>
+                                    <SelectItem value="startDate">Start Date</SelectItem>
+                                    <SelectItem value="endDate">End Date</SelectItem>
                                     <SelectItem value="duration">Duration</SelectItem>
-                                    <SelectItem value="distance">Distance</SelectItem>
-                                    <SelectItem value="calories">Calories</SelectItem>
+                                    <SelectItem value="type">Type</SelectItem>
+                                    <SelectItem value="sourceName">Source</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

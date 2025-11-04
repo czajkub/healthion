@@ -11,7 +11,7 @@ export default function Dashboard() {
     const { data: heartRateData, summary: heartRateSummary, meta: heartRateMeta, loading: heartRateLoading } = useHeartRate({ limit: 5 });
     const { data: workoutData, meta: workoutMeta, loading: workoutLoading } = useWorkouts({ 
         limit: 10,
-        sort_by: 'date',
+        sort_by: 'startDate',
         sort_order: 'desc'
     });
 
